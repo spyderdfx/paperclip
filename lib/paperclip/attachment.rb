@@ -521,6 +521,10 @@ module Paperclip
         @queued_for_write[name] = style.processors.inject(@queued_for_write[:original]) do |file, processor|
           file = Paperclip.processor(processor).make(file, style.processor_options, self)
           intermediate_files << file
+          # if we're processing the original, close + unlink the source tempfile
+          if name == :original
+            @queued_for_write[:original].close(true)
+          end
           file
         end
 
@@ -579,7 +583,11 @@ module Paperclip
     def unlink_files(files)
       Array(files).each do |file|
         file.close unless file.closed?
-        file.unlink if file.respond_to?(:unlink) && file.path.present? && File.exist?(file.path)
+
+        begin
+          file.unlink if file.respond_to?(:unlink)
+        rescue Errno::ENOENT
+        end
       end
     end
 
